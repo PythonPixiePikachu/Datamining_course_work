@@ -1,3 +1,4 @@
+# importing required packages
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -34,21 +35,25 @@ def df_info(df):
     print((df.describe()).T)
 
 def box_plot(df,image_name):
+    """This function will take data frame as input
+    melts the data according to the class attribute
+    and plots the boxplot using seaborn"""
     df_melted = pd.melt(df,id_vars='class',
                           var_name='Attributes',
                           value_name='Value')
 
     plt.figure()
     sns.boxplot(x='Attributes',y='Value',hue='class',data=df_melted)
-    plt.xticks(rotation=75)
+    plt.xticks(rotation=75) # rotating xticks by 75 degree
     plt.title('box plot before Standardization') 
     plt.savefig('box plot before Standardization')
     plt.show()
 
 cwd = os.getcwd()
-df = pd.read_csv('magic04.data', sep =',')
+df = pd.read_csv('magic04.data', sep =',') # reading the dataset by using pandas
 df_info(df)
 
+# plots the bar graphs according to the count of datasets divided by class attribute
 plt.figure()
 plt.bar(x='g', height= len(df[df['class']=='g']), label = 'Class g')
 plt.bar(x='h', height= len(df[df['class']=='h']), label = 'class h')
@@ -59,113 +64,80 @@ plt.legend()
 plt.savefig('count')
 plt.show()
 
+# plotting correlation cluster map using seaborn
 df_corr = df.corr()
 plt.figure()
-sns.clustermap(df_corr, annot = True, figsize=(16,10))
+sns.clustermap(df_corr, annot = True, figsize=(16,10)) # defining figure size
 plt.title('Correlation between Attributes', fontdict={'fontsize':'14'})
 plt.savefig('Correlation between Attributes')
 plt.show()
 
+# plotting box plot before standardization
 box_plot(df = df, image_name = 'box plot before Standardization')
-
-# df_melted = pd.melt(df,id_vars='class',
-#                       var_name='Attributes',
-#                       value_name='Value')
-
-# plt.figure()
-# sns.boxplot(x='Attributes',y='Value',hue='class',data=df_melted)
-# plt.xticks(rotation=75)
-# plt.title('box plot before Standardization') 
-# plt.savefig('box plot before Standardization')
-# plt.show()
 
 x = df.drop(['class'], axis = 1)
 y = df['class']
-col = x.columns.tolist()
-otl = LocalOutlierFactor()
+col = x.columns.tolist() # converting columns to list
+otl = LocalOutlierFactor() # using Localoutliner to identify outliner values
 pred = otl.fit_predict(x)
 
-x_score = otl.negative_outlier_factor_
+x_score = otl.negative_outlier_factor_ # scoring the each value
 score = pd.DataFrame()
-score['score'] = x_score
+score['score'] = x_score # storing in a dataset
 
-threshold = -1.5
-outlier_index = score[score['score']<threshold].index.tolist()
-
+threshold = -1.5 # defining an thrusthold value.
+# storing the indexes whose score is less than threshold value.
+outlier_index = score[score['score']<threshold].index.tolist() 
+# droping the indexes
 x = x.drop(outlier_index)
 y = y.drop(outlier_index).values
-
+# splitting the data using sklearn
 x_train, x_test,  y_train, y_test = train_test_split(x, y, 
                                                     test_size= 0.25
                                                     , random_state=42)
 
+# applying the standardization inorder to eliminate the negative values
 sc = MinMaxScaler()
 x_train = sc.fit_transform(x_train)
 x_test = sc.transform(x_test)
 x_df =  pd.DataFrame(x_train, columns=col)
 x_df['class'] = y_train
 
-
+# box plot after standardization
 box_plot(df = x_df, image_name = 'box plot After Standardization')
-# x_melted = pd.melt(x_df,id_vars='class',
-#                       var_name='Attributes',
-#                       value_name='Value')
-# plt.figure()
-# sns.boxplot(x='Attributes',y='Value',hue='class',data=x_melted)
-# plt.xticks(rotation=75)
-# plt.title('box plot After Standardization') 
-# plt.savefig('box plot After Standardization')
-# plt.show()
 
+
+def model_NB(model_nb, image_name):
+    """In this function we will take model as input and
+    fit the data. Performs confusion matrix, prediction 
+    on test data and accuracies"""
+    model = model_nb.fit(x_train, y_train) # fitting the data
+    y_pred = model.predict(x_test)
+    y_true = y_test
+    cm = confusion_matrix(y_true, y_pred) # forming an confusion matrix using sklearn
+
+    label = ['g','h']
+    plt.figure()
+    sns.heatmap(cm, annot= True, fmt='.0f', xticklabels = label
+                , yticklabels = label)
+    plt.title("Confusion matrix for "+image_name)
+    plt.savefig(image_name)
+    plt.show()
+
+    accuraccies = cross_val_score(estimator = model, X= x_train, y=y_train, cv=10)
+    print("Average Accuracies: ",np.mean(accuraccies))
+    print("Standart Deviation Accuracies: ",np.std(accuraccies))
+    print("Accuracy of NB Score: ", model.score(x_test,y_test))
+
+    report = classification_report(y_true, y_pred)
+    print(report)
+# applying Gausssian Naïve Bayes
 GNB = GaussianNB()
-
-model_gnb = GNB.fit(x_train, y_train)
-y_pred_gnb = model_gnb.predict(x_test)
-y_true = y_test
-
-cm = confusion_matrix(y_true, y_pred_gnb)
-
-
-label = ['g','h']
-plt.figure()
-sns.heatmap(cm, annot= True, fmt='.0f', xticklabels = label
-            , yticklabels = label)
-plt.title("Confusion matrix for GNB")
-plt.savefig('GNB')
-plt.show()
-
-
-accuraccies = cross_val_score(estimator = GNB, X= x_train, y=y_train, cv=10)
-print("Average Accuracies: ",np.mean(accuraccies))
-print("Standart Deviation Accuracies: ",np.std(accuraccies))
-print("Accuracy of NB Score: ", GNB.score(x_test,y_test))
-
-
-
-report = classification_report(y_true, y_pred_gnb)
-print(report)
-
-
+model_NB(model_nb = GNB, image_name = 'GNB')
+# applying Multinomial Naïve Bayes
 MNB = MultinomialNB()
-model_mnb = MNB.fit(x_train, y_train)
-y_pred_mnb = model_mnb.predict(x_test)
+model_NB(model_nb = MNB, image_name = 'MNB')
 
-cm_mnb = confusion_matrix(y_true, y_pred_mnb)
 
-label = ['g','h']
-plt.figure()
-sns.heatmap(cm_mnb, annot= True, fmt='.0f', xticklabels = label
-            , yticklabels = label)
-plt.title("Confusion matrix for MNB")
-plt.savefig('MNB')
-plt.show()
-
-accuraccies = cross_val_score(estimator = MNB, X= x_train, y=y_train, cv=10)
-print("Average Accuracies: ",np.mean(accuraccies))
-print("Standart Deviation Accuracies: ",np.std(accuraccies))
-print("Accuracy of NB Score: ", MNB.score(x_test,y_test))
-
-report = classification_report(y_true, y_pred_mnb)
-print(report)
 
 
